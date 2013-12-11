@@ -1,0 +1,11 @@
+This is a simple implementation of buddy system for memory management.
+
+Original Code from: (https://github.com/wuwenbin/buddy2)
+
+## Usage
+    make
+    ./buddy_test
+
+    alloc <size>
+    free <offset>
+    ...

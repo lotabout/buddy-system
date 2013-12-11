@@ -2,6 +2,8 @@
  *
  * Description:
  *   Implement buddy system for memory management
+ *
+ * Idea & part of the code are from https://github.com/wuwenbin/buddy2 
  */
 
 #include <stdio.h>
@@ -9,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-/*#include "buddy.h"*/
+#include "buddy.h"
 
 struct buddy {
     size_t size;
@@ -31,7 +33,7 @@ static inline int right_child(int index)
 static inline int parent(int index)
 {
     /* (index+1)/2 - 1 */
-    return (((index)+1)>>1 - 1);
+    return (((index+1)>>1) - 1);
 }
 
 static inline bool is_power_of_2(int index)
@@ -98,7 +100,7 @@ struct buddy *buddy_new(unsigned num_of_fragments)
     int iter_end = num_of_fragments * 2 - 1;
     for (i = 0; i < iter_end; i++) {
         if (is_power_of_2(i+1)) {
-            node_size >> 1;
+            node_size >>= 1;
         }
         self->longest[i] = node_size;
     }
@@ -124,12 +126,10 @@ unsigned choose_better_child(struct buddy *self, unsigned index, size_t size)
     children[1].index = right_child(index);
     children[1].size = self->longest[children[1].index];
 
-    int min_idx = 0;
-    if (children[0].size > children[1].size) {
-        min_idx = 1;
-    }
-    if (size < children[min_idx].size) {
-        min_idx = !min_idx;
+    int min_idx = (children[0].size <= children[1].size) ? 0: 1;
+
+    if (size > children[min_idx].size) {
+        min_idx = 1 - min_idx;
     }
     
     return children[min_idx].index;
@@ -202,10 +202,66 @@ void buddy_free(struct buddy *self, int offset)
         size_t left_longest = self->longest[left_child(index)];
         size_t right_longest = self->longest[right_child(index)];
 
-        if (left_longest + right_child == node_size) {
+        if (left_longest + right_longest == node_size) {
             self->longest[index] = node_size;
         } else {
             self->longest[index] = max(left_longest, right_longest);
         }
     }
+}
+
+void buddy_dump(struct buddy *self)
+{
+    int len = self->size << 1;
+    int max_col = self->size << 1; 
+    int level = 0;
+    int i,j;
+
+    char cs[] = {'/', '\\'};
+    int idx = 0;
+    char c;
+
+    for (i = 0, max_col=len, level=0; i < len-1; i++) {
+        if (is_power_of_2(i+1)) {
+            max_col >>= 1;
+            level ++;
+            idx = 0;
+            printf("\n%d(%.2d): ", level, max_col);
+        }
+
+        printf("%*d", max_col, self->longest[i]);
+    }
+
+    for (i = 0, max_col=len, level=0; i < len-1; i++) {
+        if (is_power_of_2(i+1)) {
+            max_col >>= 1;
+            level ++;
+            idx = 0;
+            printf("\n%d(%.2d): ", level, max_col);
+        }
+
+        if (self->longest[i] > 0) {
+            c = '-';
+        } else {
+            c = cs[idx];
+            idx ^= 0x1;
+        }
+
+        for (j = 0; j < max_col; j++) {
+            printf("%c", c);
+        }
+    }
+    printf("\n");
+}
+
+int buddy_size(struct buddy *self, int offset)
+{
+    unsigned node_size = 1;
+    unsigned index = offset + self->size - 1;
+
+    for (; self->longest[index]; index = parent(index)) {
+        node_size >>= 1;
+    }
+
+    return node_size;
 }
